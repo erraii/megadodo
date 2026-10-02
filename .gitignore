@@ -135,3 +135,18 @@ venv/
 venv-linux/
 
 # End of https://www.gitignore.io/api/django
+
+# 42 sozluk local development
+.local/
+.env
+.env.*
+!.env.example
+*.local.env
+.venv/
+.DS_Store
+Thumbs.db
+*.key
+*.pem
+
+# Windows download metadata
+*:Zone.Identifier
