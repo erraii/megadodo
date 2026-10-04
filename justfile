@@ -1,4 +1,4 @@
-files_env := env("SOZLUK_COMPOSE_FILES", "compose.yml workers.yml")
+files_env := env("SOZLUK_COMPOSE_FILES", "compose.yml")
 files_abs := prepend("docker/dev/", files_env)
 files := prepend("-f ", files_abs)
 service := "sozluk-web"
