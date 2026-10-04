@@ -1,23 +1,19 @@
-# 42 sözlük — yerel geliştirme
+# Megadodo — yerel geliştirme
 
 Hedef düzen: VS Code + Codex, Git ve Docker Compose. Kaynak adayımız
 [realsuayip/django-sozluk](https://github.com/realsuayip/django-sozluk).
 Docker ilk değerlendirmede Python, PostgreSQL ve diğer servisleri
 bilgisayara ayrı ayrı kurma ihtiyacını azaltır.
 
-## Hazırlananlar ve doğrulama sınırı
+## Kaynak doğrulaması
 
-Bu paket kaynak kodunu bilgisayarında indirir ve Git/VS Code/agent düzenini
-hazırlar. Uygulamayı başlatacak Compose dosyası içermez. Docker ve tam kaynak
-indirme bu paketin hazırlandığı ortamda kullanılamadığı için uygulama burada
-çalıştırılmadı. Sonraki adım docs/FIRST_TASK.md ile gerçek kaynak üzerinde
-yerel çalışma düzenini tamamlamaktır.
-
-1 Ekim 2026'da GitHub'daki pyproject.toml üzerinde Python `==3.13.*`,
-Django `~=5.2` ve uv.lock görüldü. İlk kurulumda indirilen sürüm değişmiş
-olabilir: kendi checkout'undaki dosyalar esas alınır. README üretim için
-`make` anlatıyor, depo kökünde ise `justfile` listeleniyor. Dolayısıyla
-internetten kopyalanmış production komutları yerel kurulum tarifi sayılmaz.
+Bu checkout Python `==3.14.*` ister (`pyproject.toml` ve `uv.lock`).
+Mevcut `docker/dev/compose.yml`, `common.yml` ve `dev.Dockerfile` kullanılır.
+Dockerfile Python 3.14 imajlarıyla `uv sync --frozen` çalıştırır; lockfile
+korunur. PostgreSQL 18, Redis ve RabbitMQ kaynakta sabitlenmiş imajlardır.
+Kod `/app` bind mount üzerinden Django runserver tarafından yeniden yüklenir.
+PostgreSQL `sozluk_pg-data` volume'ünde kalır; yalnızca web portu
+`127.0.0.1:8000` üzerinden yayımlanır. Host Python 3 yalnızca secret üretir.
 
 ## 1. Bilgisayarını hazırla
 
@@ -41,7 +37,7 @@ Geri kalan terminal komutlarını **Ubuntu terminalinde** çalıştır:
 
 ```bash
 sudo apt update
-sudo apt install git unzip ripgrep gh
+sudo apt install git unzip ripgrep gh python3
 mkdir -p ~/code
 ```
 
@@ -55,7 +51,7 @@ Git, unzip ve ripgrep kur. Ubuntu/Debian için:
 
 ```bash
 sudo apt update
-sudo apt install git unzip ripgrep gh
+sudo apt install git unzip ripgrep gh python3
 mkdir -p ~/code
 ```
 
@@ -78,8 +74,8 @@ mkdir -p ~/code
 ```
 
 `code` komutu yoksa VS Code Command Palette içinden **Shell Command:
-Install 'code' command in PATH** seç. Paket için host Python/Node kurmak
-gerekmez; uygulama bağımlılıkları kaynak incelendikten sonra container'da kurulacak.
+Install 'code' command in PATH** seç. Uygulama bağımlılıkları container içinde kurulur. `init` komutu için host
+üzerinde Python 3 gerekir (`python3 --version` ile kontrol et).
 
 ## 2. Başlangıç paketini çıkart ve kaynak kodu indir
 
@@ -127,7 +123,9 @@ VS Code'daki yerel Codex proje dosyalarını okuyup düzenleyebilir.
 
 ## 4. Kendi GitHub deponu bağla
 
-GitHub'da **42-sozluk** adında yeni, boş bir repository oluştur. İlk
+Projenin adı **Megadodo**, deposu [erraii/megadodo](https://github.com/erraii/megadodo).
+Bu checkout'ta origin zaten bu adrese bağlıdır. Yeni bir kurulum için GitHub'da
+**megadodo** adında boş bir repository kullan. İlk
 geliştirmede private tercih edebilirsin. README, lisans veya .gitignore ile
 başlatma: bunlar klonladığımız kaynakta var. Bu yöntem bağımsız bir repo
 oluşturur; kaynak geçmişi ve LICENSE dosyası korunur.
@@ -145,7 +143,7 @@ SSH repo adresini de kullanabilirsin.
 
 ```bash
 cd ~/code/42-sozluk
-git remote add origin https://github.com/GITHUB_KULLANICIN/42-sozluk.git
+git remote add origin https://github.com/erraii/megadodo.git
 git status --short
 git diff --check
 git add AGENTS.md .editorconfig .gitattributes .gitignore .vscode scripts docs
@@ -154,13 +152,15 @@ git commit -m "chore: prepare local development workflow"
 git push -u origin main
 ```
 
-`GITHUB_KULLANICIN` yerine kendi hesabını kullan. `setup.sh --origin ...`
-seçeneğini kullandıysan `git remote add origin` adımını atla. Buradaki push
+`setup.sh --origin ...`
+seçeneğini kullandıysan veya origin zaten tanımlıysa `git remote add origin`
+adımını atla. Adresi düzeltmek gerekirse `git remote set-url origin
+https://github.com/erraii/megadodo.git` kullan. Buradaki push
 ilk kontrol noktasını saklar; proje henüz çalışır uygulama hâline gelmez.
 
 | İsim | Amaç |
 | --- | --- |
-| `origin` | Senin 42-sozluk depon; kendi commit'lerin buraya gider |
+| `origin` | Megadodo depon; kendi commit'lerin buraya gider |
 | `upstream` | Orijinal django-sozluk kaynağı; başlangıcı ve ilerideki güncellemeleri takip ederiz |
 | `main` | Gözden geçirilmiş, çalışan sürümler |
 | `chore/local-runtime` | İlk uygulama kurulum işi |
@@ -169,25 +169,129 @@ ilk kontrol noktasını saklar; proje henüz çalışır uygulama hâline gelmez
 ## 5. Uygulamayı yerelde çalıştıracak ilk görev
 
 ```bash
-git switch -c chore/local-runtime
+git switch chore/local-runtime  # Dal henüz yoksa: git switch -c chore/local-runtime
 ```
 
-docs/FIRST_TASK.md içindeki görevi Codex'e gönder. Agent gerçek kaynak,
-settings ve servisleri inceleyerek local Compose düzenini tamamlayacak.
-İlk kurulumda aşağıdaki bölüm gerçek komutlarla doldurulmalı:
+Depo kökünden:
 
-| İş | Durum |
+```bash
+bash scripts/local.sh init
+bash scripts/local.sh setup
+bash scripts/local.sh exec -T web python manage.py check
+bash scripts/local.sh exec -T web python manage.py migrate --check
+curl --fail --silent --output /dev/null --write-out '%{http_code}\n' http://127.0.0.1:8000/
+```
+
+`init` `.local/django.env` ve `.local/postgres.env` dosyalarını rastgele,
+eşleşen parolayla ve yalnızca kullanıcı erişimiyle oluşturur. Var olan
+dosyaları korur; eksik bir çift varsa hata verir. Secret dosyalarını
+paylaşma veya commit etme. Takip edilen `.example` dosyaları placeholder içerir.
+Kaynağın `conf/dev/*.env` dosyaları bu düzende kullanılmaz.
+
+`setup` imajı oluşturur, servisleri başlatır, PostgreSQL hazır olunca
+`quicksetup` çalıştırır: migration, collectstatic ve iki sistem hesabı.
+Tekrar çalıştırmak veri silmez. Normal geliştirmede:
+
+```bash
+bash scripts/local.sh up -d db redis rabbitmq web
+bash scripts/local.sh stop
+bash scripts/local.sh up -d db redis rabbitmq web
+bash scripts/local.sh manage migrate
+bash scripts/local.sh manage createsuperuser
+bash scripts/local.sh manage shell
+bash scripts/local.sh manage check
+bash scripts/local.sh logs --tail 100 web
+```
+
+Admin hesabını interaktif oluştur; parola komut satırına yazılmaz.
+Bu hesap yalnızca aday uygulamanın yerel değerlendirmesi içindir.
+Admin: http://127.0.0.1:8000/admin/ . Gerçek 42 OAuth henüz yok.
+`justfile` da varsayılan olarak aynı temel Compose dosyasını kullanır.
+Önce `init` ve `setup` çalıştırılmalıdır. Celery isteğe bağlıdır: `bash scripts/local.sh --profile workers up -d`.
+
+Container yeniden oluşturma ile kalıcılık kontrolü:
+
+```bash
+bash scripts/local.sh exec -T -e PERSISTENCE_CREATE=1 web python manage.py shell < scripts/local-persistence.py
+bash scripts/local.sh down
+bash scripts/local.sh up -d db redis rabbitmq web
+bash scripts/local.sh exec -T web python manage.py shell < scripts/local-persistence.py
+```
+
+Bu kontrol parolasız bir geliştirme kullanıcısı, başlık ve yayımlanmış entry
+oluşturur; ikinci çağrı yalnızca aynı kayıtları okuyup doğrular.
+`down` volume'leri korur. `down -v` veritabanını siler; normal durdurmada kullanma.
+`setup` tekrar çalıştırıldıktan sonra da okuma kontrolü yapılabilir.
+
+### Bu oturumun doğrulama sonuçları (4–5 Ekim 2026)
+
+| Gerçekten çalıştırılan komut / kontrol | Sonuç |
 | --- | --- |
-| Kaynak/Git kurulumu | `setup.sh` |
-| Temel araç kontrolü | `bash scripts/doctor.sh` |
-| Container build ve ilk veri kurulumu | Kaynak üzerinde henüz doğrulanmadı |
-| Yerel başlatma/durdurma | Kaynak üzerinde henüz doğrulanmadı |
-| Migration, Django check, testler | Kaynak üzerinde henüz doğrulanmadı |
-| Admin hesabı ve anasayfa kontrolü | Kaynak üzerinde henüz doğrulanmadı |
+| `docker compose version`, `docker info --format '{{.ServerVersion}}'` | Compose v2.39.2, Engine 28.3.3 |
+| `bash scripts/local.sh init` (iki kez) | Secret dosyaları oluşturuldu; ikinci çağrıda korundu |
+| `docker compose -p sozluk -f docker/dev/compose.yml config --quiet` | Geçti; env içerikleri yazdırılmadı |
+| `bash scripts/local.sh setup` (iki kez) | Python 3.14.7 / Django 5.2.5; frozen lock kurulumu, migration ve collectstatic geçti |
+| `bash scripts/local.sh exec -T web python manage.py check` | 0 sorun |
+| `bash scripts/local.sh exec -T web python manage.py migrate --check` | Geçti; bekleyen migration yok |
+| `bash scripts/local.sh exec -T web python manage.py makemigrations --check --dry-run` | `No changes detected` |
+| `docker compose -p sozluk -f docker/dev/compose.yml exec -T web python manage.py test dictionary.tests --noinput` | 41 test geçti; ayrı test veritabanı temizlendi |
+| Yukarıdaki `curl` komutu | Ana sayfa `200`; yeniden kurulum sonrasında da `200` |
+| Yukarıdaki kalıcılık komutları | `down/up` öncesi ve sonrası `topic=1, entry=1, author=3`; ikinci `setup` sonrası da aynı |
+| `touch djdict/urls.py` ve filtrelenmiş web logları | `changed, reloading`; yeniden Django check geçti (dosya içeriği değişmedi) |
+| Compose `ps` port kontrolü | Web yalnızca `127.0.0.1:8000`; DB/Redis/RabbitMQ host portu yok |
+| `bash -n scripts/local.sh`, `git diff --check` | Geçti |
+| `git check-ignore .local/django.env .local/postgres.env` ve dosya izin kontrolü | Ignore kuralları ve `0600` izinleri doğrulandı |
+| `git diff --exit-code -- pyproject.toml uv.lock LICENSE` | Bağımlılık kuralı, lockfile ve lisans değiştirilmedi |
 
-Uygulama açılmadan ürün uyarlamasına başlamayacağız. İlk amaç aday
-projeyi değerlendirmek: başlık aç, entry yaz, yeniden başlat, entry'nin
-kaldığını kontrol et. Gerçek 42 OAuth uygulama kaydını giriş işine gelince yapacağız.
+İlk HTTP denemesi web yeniden oluşturulurken bağlantı sıfırlanmasıyla
+`000` döndü; servis hazırken tekrar edilen kontroller `200` oldu.
+Docker erişimi bu agent sandbox'ında onaylı dış çalıştırma gerektirdi.
+Build'de upstream Dockerfile'ın `FROM/as` büyük-küçük harf uyarısı görüldü;
+build başarıyla tamamlandı.
+
+Tarayıcıyla arayüz, admin girişi, interaktif `createsuperuser`, Celery
+worker/beat ve gerçek 42 OAuth doğrulanmadı. Kalıcılık testi ORM/Django
+shell üzerinden yapıldı; arayüzden başlık/entry yazıldığı iddia edilmiyor.
+Ürün özellikleri, branding uyarlaması ve production deployment eklenmedi.
+Uygulama http://127.0.0.1:8000/ üzerinde çalışır durumda bırakıldı.
+
+### Commit öncesi inceleme (5 Ekim 2026)
+
+`bash scripts/local.sh setup` yeniden çalıştırıldı; öncesinde ve sonrasında
+kalıcılık betiği aynı `topic=1, entry=1, author=3` değerlerini doğruladı.
+`check`, `migrate --check`, `makemigrations --check --dry-run` ve mevcut
+41 Django testi tekrar geçti. Compose yapılandırması secret değerleri
+çıktıya verilmeden incelendi: web loopback ile sınırlı, diğer servislerin
+host portu yok, PostgreSQL volume'ü ve kod bind mount'u mevcut.
+Yerel secret dosyalarının takip edilmediği, izinlerinin `0600` olduğu,
+örnek secret alanlarının placeholder içerdiği ve gerçek yerel secret
+değerlerinin depo dosyalarında bulunmadığı doğrulandı.
+Upstream'in takip edilen `conf/dev/*.env` ve `conf/prod/*.env` dosyaları
+bu yerel runtime tarafından kullanılmaz; gerçek yerel secret dosyaları
+`.local` altındadır.
+
+Çalışan container'ın sürümünü doğrulamak için:
+
+```bash
+bash scripts/local.sh exec -T web python --version
+```
+
+Sonuç `Python 3.14.7`. Arayüzde görünen `3.11` gerçek runtime değildi;
+`dictionary/templates/dictionary/includes/devinfo.html` içinde sabitti.
+Aynı şablondaki upstream proje sürümü `1.6.1` de eskiydi. Şablon artık
+Python sürümünü runtime'dan, upstream proje sürümünü `pyproject.toml`'dan
+alır. HTTP yanıtı dosyaya alınarak HTML'de `Python version: 3.14.7` ve
+`django-sozluk 1.7.0` bulunduğu, eski Python yazısının bulunmadığı doğrulandı:
+
+```bash
+curl --fail --silent --show-error --output /tmp/megadodo-runtime-review.html --write-out '%{http_code}\n' http://127.0.0.1:8000/
+```
+
+HTTP sonucu `200`; tarayıcıyla görsel doğrulama yapılmadı.
+Dockerfile `FROM/as` uyarısı `AS` yazımıyla düzeltildi; yeniden build geçti.
+Host Python 3 gereksinimi de kurulum bölümünde düzeltildi.
+Origin `https://github.com/erraii/megadodo.git`; yerel klasör
+`~/code/42-sozluk` olarak korunur.
 
 ## 6. Her geliştirme işi için düzen
 

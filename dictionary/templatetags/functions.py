@@ -1,3 +1,7 @@
+import platform
+import tomllib
+from pathlib import Path
+
 from django import template
 from django.db.models import Exists, OuterRef
 from django.utils.html import mark_safe
@@ -7,6 +11,18 @@ from dictionary.conf import settings
 from dictionary.models import Category, ExternalURL, Suggestion
 
 register = template.Library()
+
+
+@register.simple_tag
+def runtime_python_version():
+    return platform.python_version()
+
+
+@register.simple_tag
+def upstream_project_version():
+    with (Path(__file__).resolve().parents[2] / "pyproject.toml").open("rb") as metadata:
+        return tomllib.load(metadata)["project"]["version"]
+
 
 """
 Make sure you restart the Django development
